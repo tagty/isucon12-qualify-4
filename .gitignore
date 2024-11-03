@@ -1,0 +1,13 @@
+.bash_history
+.bash_logout
+.bashrc
+.cache/
+.docker/
+.gitconfig
+.hushlogin
+.profile
+.ssh/
+.sudo_as_admin_successful
+.viminfo
+initial_data/
+tmp/
