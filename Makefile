@@ -5,16 +5,6 @@ deploy:
 		git fetch; \
 		git checkout $(BRANCH); \
 		git reset --hard origin/$(BRANCH)"
-	scp -r ./webapp/go isu12q-2:/home/isucon/webapp/
-	scp -r ./webapp/go isu12q-3:/home/isucon/webapp/
-	scp ./webapp/sql/player_score.sql isu12q-2:/home/isucon/webapp/sql/
-	scp ./webapp/sql/player_score.sql isu12q-3:/home/isucon/webapp/sql/
-	ssh isu12q-2 " \
-		rm -f webapp/tenant_db/*.db; \
-		cp -r initial_data/*.db webapp/tenant_db/"
-	ssh isu12q-3 " \
-		rm -f webapp/tenant_db/*.db; \
-		cp -r initial_data/*.db webapp/tenant_db/"
 
 build:
 	ssh isu12q-1 " \
@@ -29,8 +19,6 @@ go-deploy-dir:
 
 restart:
 	ssh isu12q-1 "sudo systemctl restart isuports.service"
-	ssh isu12q-2 "sudo systemctl restart isuports.service"
-	ssh isu12q-3 "sudo systemctl restart isuports.service"
 
 mysql-deploy:
 	ssh isu12q-1 "sudo dd of=/etc/mysql/mysql.conf.d/mysqld.cnf" < ./etc/mysql/mysql.conf.d/mysqld.cnf
