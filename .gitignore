@@ -11,3 +11,4 @@
 .viminfo
 initial_data/
 tmp/
+pprof/
