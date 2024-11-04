@@ -8,8 +8,8 @@ deploy:
 
 build:
 	ssh isu12q-1 " \
-		cd /home/isucon/webapp/go/cmd/isuports; \
-		/usr/bin/go build -o isuports"
+		cd /home/isucon/webapp/go; \
+		make isuports"
 
 go-deploy:
 	scp ./webapp/go/isuports isu12q-1:/home/isucon/webapp/go/
