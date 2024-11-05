@@ -981,6 +981,21 @@ func competitionFinishHandler(c echo.Context) error {
 			now, now, id, err,
 		)
 	}
+
+	report, err := billingReportByCompetition(ctx, tenantDB, v.tenantID, id)
+	if err != nil {
+		return fmt.Errorf("error billingReportByCompetition: %w", err)
+	}
+	if _, err := adminDB.ExecContext(
+		ctx,
+		"INSERT INTO billing_report (tenant_id, competition_id, competition_title, player_count, visitor_count, billing_player_yen, billing_visitor_yen, billing_yen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		v.tenantID, id, report.CompetitionTitle, report.PlayerCount, report.VisitorCount, report.BillingPlayerYen, report.BillingVisitorYen, report.BillingYen,
+	); err != nil {
+		return fmt.Errorf(
+			"error Insert billing_report at adminDB: tenantID=%d, competitionID=%s, competitionTitle=%s, playerCount=%d, visitorCount=%d, billingPlayerYen=%d, billingVisitorYen=%d, billingYen=%d, %w",
+			v.tenantID, id, report.CompetitionTitle, report.PlayerCount, report.VisitorCount, report.BillingPlayerYen, report.BillingVisitorYen, report.BillingYen, err,
+		)
+	}
 	return c.JSON(http.StatusOK, SuccessResult{Status: true})
 }
 
