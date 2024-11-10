@@ -7,6 +7,8 @@ deploy:
 		git reset --hard origin/$(BRANCH)"
 	scp -r ./webapp/go isu12q-2:/home/isucon/webapp/
 	scp -r ./webapp/go isu12q-3:/home/isucon/webapp/
+	ssh isu12q-2 "sudo dd of=/home/isucon/webapp/docker-compose-go.yml" < ./webapp/docker-compose-go.yml
+	ssh isu12q-3 "sudo dd of=/home/isucon/webapp/docker-compose-go.yml" < ./webapp/docker-compose-go.yml
 	ssh isu12q-2 " \
 		cd /home/isucon; \
 		rm -f webapp/tenant_db/*.db; \
