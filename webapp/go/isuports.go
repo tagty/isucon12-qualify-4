@@ -1080,16 +1080,31 @@ func competitionScoreHandler(c echo.Context) error {
 			playerIDs = append(playerIDs, playerID)
 			playersMap[playerID] = true
 		}
-		playerScoreRows = append(playerScoreRows, PlayerScoreRow{
-			ID:            id,
-			TenantID:      v.tenantID,
-			PlayerID:      playerID,
-			CompetitionID: competitionID,
-			Score:         score,
-			RowNum:        rowNum,
-			CreatedAt:     now,
-			UpdatedAt:     now,
-		})
+
+		// Check if the player score already exists in the local slice
+		exists := false
+		for i, ps := range playerScoreRows {
+			if ps.TenantID == v.tenantID && ps.PlayerID == playerID && ps.CompetitionID == competitionID {
+				exists = true
+				playerScoreRows[i].Score = score
+				playerScoreRows[i].UpdatedAt = now
+				break
+			}
+		}
+
+		// Only add if the score does not already exist
+		if !exists {
+			playerScoreRows = append(playerScoreRows, PlayerScoreRow{
+				ID:            id,
+				TenantID:      v.tenantID,
+				PlayerID:      playerID,
+				CompetitionID: competitionID,
+				Score:         score,
+				RowNum:        rowNum,
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			})
+		}
 	}
 
 	sql, params, err := sqlx.In(

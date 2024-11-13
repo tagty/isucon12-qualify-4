@@ -101,3 +101,12 @@ pprof-show:
 
 pprof-kill:
 	ssh isu12q-1 "pgrep -f 'pprof' | xargs kill;"
+
+pprof-2:
+	ssh isu12q-2 " \
+		/usr/bin/go tool pprof -seconds=80 /home/isucon/webapp/go/isuports http://localhost:6060/debug/pprof/profile"
+
+pprof-show-2:
+	$(eval latest := $(shell ssh isu12q-2 "ls -rt ~/pprof/ | tail -n 1"))
+	scp isu12q-2:~/pprof/$(latest) ./pprof
+	go tool pprof -http=":1080" ./pprof/$(latest)
