@@ -1048,6 +1048,7 @@ func competitionScoreHandler(c echo.Context) error {
 	}
 	var rowNum int64
 	playerScoreRows := []PlayerScoreRow{}
+	playerScoreRowsCompact := []PlayerScoreRow{}
 	playersMap := make(map[string]bool)
 	playerIDs := []string{}
 	for {
@@ -1079,6 +1080,32 @@ func competitionScoreHandler(c echo.Context) error {
 		if !playersMap[playerID] {
 			playerIDs = append(playerIDs, playerID)
 			playersMap[playerID] = true
+		}
+
+		// Check if the score already exists
+		exists := false
+		for i, ps := range playerScoreRowsCompact {
+			if ps.TenantID == v.tenantID && ps.PlayerID == playerID && ps.CompetitionID == competitionID {
+				// Score exists, update it
+				playerScoreRowsCompact[i].Score = score
+				playerScoreRowsCompact[i].UpdatedAt = now
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			// Score does not exist, add to compact list
+			playerScoreRowsCompact = append(playerScoreRowsCompact, PlayerScoreRow{
+				ID:            id,
+				TenantID:      v.tenantID,
+				PlayerID:      playerID,
+				CompetitionID: competitionID,
+				Score:         score,
+				RowNum:        rowNum,
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			})
 		}
 		playerScoreRows = append(playerScoreRows, PlayerScoreRow{
 			ID:            id,
@@ -1126,7 +1153,7 @@ func competitionScoreHandler(c echo.Context) error {
 	if _, err := tenantDB.NamedExecContext(
 		ctx,
 		"INSERT INTO player_score (id, tenant_id, player_id, competition_id, score, row_num, created_at, updated_at) VALUES (:id, :tenant_id, :player_id, :competition_id, :score, :row_num, :created_at, :updated_at)",
-		playerScoreRows,
+		playerScoreRowsCompact,
 	); err != nil {
 		return fmt.Errorf("error Insert player_score: %w", err)
 	}
@@ -1328,41 +1355,29 @@ func playerHandler(c echo.Context) error {
 		}
 		return fmt.Errorf("error retrievePlayer: %w", err)
 	}
-	cs := []CompetitionRow{}
+	cids := []string{}
 	if err := tenantDB.SelectContext(
 		ctx,
-		&cs,
-		"SELECT * FROM competition WHERE tenant_id = ? ORDER BY created_at ASC",
+		&cids,
+		"SELECT id FROM competition WHERE tenant_id = ? ORDER BY created_at ASC",
 		v.tenantID,
 	); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("error Select competition: %w", err)
 	}
 
-	// player_scoreを読んでいるときに更新が走ると不整合が起こるのでロックを取得する
-	fl, err := flockByTenantID(v.tenantID)
+	pss := make([]PlayerScoreRow, 0, len(cids))
+	query, args, err := sqlx.In(
+		"SELECT * FROM player_score WHERE tenant_id = ? AND competition_id IN (?) AND player_id = ?",
+		v.tenantID,
+		cids,
+		p.ID,
+	)
 	if err != nil {
-		return fmt.Errorf("error flockByTenantID: %w", err)
+		return fmt.Errorf("error building query: %w", err)
 	}
-	defer fl.Close()
-	pss := make([]PlayerScoreRow, 0, len(cs))
-	for _, c := range cs {
-		ps := PlayerScoreRow{}
-		if err := tenantDB.GetContext(
-			ctx,
-			&ps,
-			// 最後にCSVに登場したスコアを採用する = row_numが一番大きいもの
-			"SELECT * FROM player_score WHERE tenant_id = ? AND competition_id = ? AND player_id = ? ORDER BY row_num DESC LIMIT 1",
-			v.tenantID,
-			c.ID,
-			p.ID,
-		); err != nil {
-			// 行がない = スコアが記録されてない
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-			return fmt.Errorf("error Select player_score: tenantID=%d, competitionID=%s, playerID=%s, %w", v.tenantID, c.ID, p.ID, err)
-		}
-		pss = append(pss, ps)
+	query = tenantDB.Rebind(query)
+	if err := tenantDB.SelectContext(ctx, &pss, query, args...); err != nil {
+		return fmt.Errorf("error Select player_score: tenantID=%d, playerID=%s, %w", v.tenantID, p.ID, err)
 	}
 
 	psds := make([]PlayerScoreDetail, 0, len(pss))
